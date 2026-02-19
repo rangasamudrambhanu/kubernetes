@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busybox-crash
+  labels:
+    app: busybox-crash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: busybox-crash
+  template:
+    metadata:
+      labels:
+        app: busybox-crash
+    spec:
+      containers:
+      - name: busybox
+        image: busybox:latest
+        command:
+        - sh
+        - -c
+        - |
+          echo "=== Memory Allocation Test ==="
+          echo "Memory limit: 128Mi"
+          echo "Starting allocation..."
+          echo ""
+          
+          allocated=0
+          x=""
+          
+          while true; do
+            # Allocate 1MB at a time
+            x="$x$(head -c 1M </dev/zero | tr '\0' 'A')"
+            allocated=$((allocated + 1))
+            
+            # Print progress
+            echo "Allocated: ${allocated}MB / 128MB"
+            
+            # Warn when getting close to limit
+            if [ $allocated -eq 100 ]; then
+              echo "⚠️  Approaching memory limit..."
+            fi
+            
+            if [ $allocated -eq 120 ]; then
+              echo "🔴 Very close to limit! OOMKill imminent..."
+            fi
+            
+            # Small delay to see progress in logs
+            sleep 0.1
+          done
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
